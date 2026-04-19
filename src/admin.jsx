@@ -1,0 +1,10 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './admin.css';
+import App from './components/admin/App';
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
