@@ -24,9 +24,9 @@ export const ADMIN_CONFIG = {
 
 export const SITE_DATA = {
   team: [
-    { name: 'Ren San Pedro',  role: 'The Operations Lead',  desc: 'The engine of Cravn, dedicated to providing a seamless experience and making sure our community feels right at home.', img: 'https://github.com/HaGobbie/cravpastries/blob/main/Person1Ren.png?raw=true' },
-    { name: 'Jen Dela Cruz',  role: 'The Head Artisan',      desc: 'The creative force behind our recipes, ensuring every pastry meets our high standards of flavor and texture.',          img: 'https://github.com/HaGobbie/cravpastries/blob/main/Person2Jen.png?raw=true' },
-    { name: 'Retchie Lopez',  role: 'The Creative Director', desc: 'The curator of the Cravn vibe, focusing on the design, aesthetic, and innovation that make our bakery unique.',         img: 'https://github.com/HaGobbie/cravpastries/blob/main/Person3Retch.png?raw=true' },
+    { name: 'Rene Marlon S. Castigador II',  role: 'The Operations Lead',  desc: 'The engine of Cravn, dedicated to providing a seamless experience and making sure our community feels right at home.', img: 'https://github.com/HaGobbie/cravpastries/blob/main/Person1Ren.png?raw=true' },
+    { name: 'Jennefer D. Udal',  role: 'The Head Artisan',      desc: 'The creative force behind our recipes, ensuring every pastry meets our high standards of flavor and texture.',          img: 'https://github.com/HaGobbie/cravpastries/blob/main/Person2Jen.png?raw=true' },
+    { name: 'Retchelle D. Peña',  role: 'The Creative Director', desc: 'The curator of the Cravn vibe, focusing on the design, aesthetic, and innovation that make our bakery unique.',         img: 'https://github.com/HaGobbie/cravpastries/blob/main/Person3Retch.png?raw=true' },
   ],
   galleryImages: [
     'https://github.com/HaGobbie/cravpastries/blob/main/CravnAboutUs1.png?raw=true',
