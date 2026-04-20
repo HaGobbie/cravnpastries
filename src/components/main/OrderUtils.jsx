@@ -85,14 +85,31 @@ export const histSave  = (arr) => { try { localStorage.setItem(HIST_KEY, JSON.st
 export const histAdd   = (receipt) => { const existing = histLoad(); histSave([{ ...receipt, _savedAt: Date.now() }, ...existing]); };
 export const histClear = () => { try { localStorage.removeItem(HIST_KEY); } catch {} };
 
-/* ── Shared receipt card ── */
+/* ── Shared receipt card ────────────────────────────────────────────────
+ *
+ * BUG FIX: The items array stored on `receipt` (built in CheckoutModal
+ * and persisted to localStorage) has the flat shape:
+ *
+ *   { name: string, qty: number, unit_price: number }
+ *
+ * The previous code incorrectly destructured each element as `{ item, qty }`
+ * (expecting a nested `item` object), so `item` was always `undefined`,
+ * causing a TypeError on `item.id` that crashed the component tree and
+ * produced a completely blank white page after a successful order.
+ *
+ * Fixed by reading the correct flat fields: `name`, `qty`, `unit_price`.
+ * The `key` now uses the array index since there is no `id` on each item.
+ * ──────────────────────────────────────────────────────────────────────── */
 export const ReceiptCard = ({ receipt, cardId }) => (
   <div id={cardId} style={{ border: '2px dashed var(--c-caramel)', borderRadius: 20, padding: '20px', background: '#fffdf8' }}>
+    {/* Header */}
     <div style={{ textAlign: 'center', marginBottom: 16, paddingBottom: 12, borderBottom: '1px dashed var(--c-border)' }}>
       <img src={LOGO_URL} alt="Cravn" style={{ height: 36, margin: '0 auto 8px', display: 'block' }} />
       <p className="fredoka" style={{ color: 'var(--c-caramel)', fontSize: 18 }}>Cravn</p>
       <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--c-text-muted)' }}>Virtual Receipt</p>
     </div>
+
+    {/* Order details grid */}
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
       {[
         { label: 'Order ID',  value: '#' + receipt.id.split('-')[0].toUpperCase() },
@@ -108,19 +125,22 @@ export const ReceiptCard = ({ receipt, cardId }) => (
         </div>
       ))}
     </div>
+
+    {/* Items list — reads the flat { name, qty, unit_price } shape */}
     <div style={{ paddingTop: 10, borderTop: '1px dashed var(--c-border)' }}>
       <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--c-text-muted)', marginBottom: 6 }}>Items Ordered</p>
-      {receipt.items.map(({ item, qty }) => (
-        <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
-          <span style={{ color: 'var(--c-dark)' }}>{item.name} ×{qty}</span>
-          <span style={{ fontWeight: 700, color: 'var(--c-caramel)' }}>₱{(Number(item.price) * qty).toLocaleString()}</span>
+      {receipt.items.map(({ name, qty, unit_price }, idx) => (
+        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
+          <span style={{ color: 'var(--c-dark)' }}>{name} ×{qty}</span>
+          <span style={{ fontWeight: 700, color: 'var(--c-caramel)' }}>₱{(unit_price * qty).toLocaleString()}</span>
         </div>
       ))}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--c-border)' }}>
         <span style={{ fontWeight: 800, color: 'var(--c-dark)' }}>Total</span>
-        <span style={{ fontWeight: 900, color: 'var(--c-caramel)', fontSize: 16 }}>₱{receipt.total_price.toLocaleString()}</span>
+        <span style={{ fontWeight: 900, color: 'var(--c-caramel)', fontSize: 16 }}>₱{Number(receipt.total_price).toLocaleString()}</span>
       </div>
     </div>
+
     <p style={{ fontSize: 10, textAlign: 'center', color: 'var(--c-text-muted)', marginTop: 14, fontStyle: 'italic' }}>Please present this receipt at the shop on your pickup date.</p>
   </div>
 );
@@ -154,7 +174,7 @@ export const OrderHistoryPanel = () => {
   const [viewing, setViewing] = useState(null);
 
   const onSave = () => setOrders(histLoad());
-  // sync from localStorage on new order
+  // sync from localStorage when a new order is saved
   useState(() => {
     window.addEventListener('cravn_order_saved', onSave);
     return () => window.removeEventListener('cravn_order_saved', onSave);
