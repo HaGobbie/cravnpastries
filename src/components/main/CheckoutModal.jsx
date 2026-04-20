@@ -1,38 +1,12 @@
-/**
- * CheckoutModal.jsx
- *
- * Form validation strategy:
- *   - No external library needed — lightweight regex validators defined inline
- *   - "Touched" state per field so errors only surface after the user has
- *     interacted with that field (blur) or tried to submit
- *   - Real-time re-validation on every keystroke once a field is touched
- *   - Final server-side guard (closed days check) still runs on submit
- *   - Submit button is visually dimmed while the form is invalid but remains
- *     clickable so users receive field-level error messages on first attempt
- */
-
 import { useState } from 'react';
-import { supabase }       from '../../lib/supabase';
-import { useCart }        from './CartContext';
-import { ModalPortal }    from './Shared';
+import { supabase }    from '../../lib/supabase';
+import { useCart }     from './CartContext';
+import { ModalPortal } from './Shared';
 import { CravnCalendar, ReceiptCard, saveReceiptImage, histAdd } from './OrderUtils';
 
-/* ══════════════════════════════════════════
-   Validators
-══════════════════════════════════════════ */
-
-/** At least 2 non-whitespace characters */
+/* ── Validators ── */
 const RE_NAME  = /\S.+\S|\S{2,}/;
-
-/**
- * Philippine mobile numbers:
- *   09XXXXXXXXX  (11 digits)
- *   +639XXXXXXXXX (13 chars)
- * Also accepts landlines like 082-XXX-XXXX loosely.
- */
 const RE_PHONE = /^(\+639|09)\d{9}$|^0\d{2}[\s-]?\d{3}[\s-]?\d{4}$/;
-
-/** GCash transaction IDs are typically 13 digits, but we accept 6–20 digits */
 const RE_GCASH = /^\d{6,20}$/;
 
 const VALIDATORS = {
@@ -60,20 +34,16 @@ const VALIDATORS = {
   },
 };
 
-/* ── Inline field error ── */
 const FieldError = ({ msg }) =>
   msg ? (
     <p style={{ fontSize: 11, color: '#dc2626', fontWeight: 600, marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
+        <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
       </svg>
       {msg}
     </p>
   ) : null;
 
-/* ── Valid indicator dot ── */
 const FieldOk = ({ show }) =>
   show ? (
     <p style={{ fontSize: 11, color: '#15803d', fontWeight: 600, marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -84,15 +54,20 @@ const FieldOk = ({ show }) =>
     </p>
   ) : null;
 
-/* ── Input border colour helper ── */
 const borderColor = (touched, error) => {
   if (!touched) return 'var(--c-border)';
   return error ? '#dc2626' : '#15803d';
 };
 
-/* ══════════════════════════════════════════
+/* ── GCash QR code — pinned to a specific commit so the image never 404s
+      even if the branch moves forward. Append ?raw=true to serve the file
+      directly instead of the GitHub HTML wrapper page.                   ── */
+const GCASH_QR_URL =
+  'https://github.com/HaGobbie/cravpastries/blob/7a94cdceddca460d9402ebeb123d6b35719fb8ae/CravnGcash.jpg?raw=true';
+
+/* ════════════════════════════════════════
    CheckoutModal
-══════════════════════════════════════════ */
+════════════════════════════════════════ */
 const CheckoutModal = ({ onClose }) => {
   const { cart, totalPrice, clearCart } = useCart();
 
@@ -103,12 +78,9 @@ const CheckoutModal = ({ onClose }) => {
   const [submitting, setSubmitting] = useState(false);
   const [receipt,    setReceipt]    = useState(null);
 
-  /* ── Helpers ── */
   const setF = (key, value) => {
     setForm((p) => ({ ...p, [key]: value }));
-    if (touched[key]) {
-      setErrors((e) => ({ ...e, [key]: VALIDATORS[key](value) }));
-    }
+    if (touched[key]) setErrors((e) => ({ ...e, [key]: VALIDATORS[key](value) }));
   };
 
   const handleBlur = (key) => {
@@ -119,11 +91,8 @@ const CheckoutModal = ({ onClose }) => {
   const allStep2Valid = () =>
     ['name', 'phone', 'pickupDate', 'gcashRef'].every((k) => VALIDATORS[k](form[k]) === '');
 
-  /* ── Submit ── */
   const handleSubmit = async () => {
-    /* Touch all fields to surface any remaining errors */
-    const allTouched = { name: true, phone: true, pickupDate: true, gcashRef: true };
-    setTouched(allTouched);
+    setTouched({ name: true, phone: true, pickupDate: true, gcashRef: true });
     const newErrors = Object.fromEntries(
       Object.keys(VALIDATORS).map((k) => [k, VALIDATORS[k](form[k])])
     );
@@ -175,7 +144,6 @@ const CheckoutModal = ({ onClose }) => {
     }
   };
 
-  /* ── GCash total ── */
   const fmtPrice = (n) => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
 
   return (
@@ -193,7 +161,9 @@ const CheckoutModal = ({ onClose }) => {
                 <div className={`checkout-step-dot ${step === s ? 'step-active' : step > s ? 'step-done' : 'step-inactive'}`}>
                   {step > s ? '✓' : s}
                 </div>
-                {s < 3 && <div style={{ width: 28, height: 2, borderRadius: 1, background: step > s ? 'var(--c-caramel)' : 'var(--c-stone)', transition: 'background 0.3s' }} />}
+                {s < 3 && (
+                  <div style={{ width: 28, height: 2, borderRadius: 1, background: step > s ? 'var(--c-caramel)' : 'var(--c-stone)', transition: 'background 0.3s' }} />
+                )}
               </div>
             ))}
             <button onClick={onClose}
@@ -204,14 +174,15 @@ const CheckoutModal = ({ onClose }) => {
             </button>
           </div>
 
-          {/* ═══════════════════
-              STEP 1 — Review Cart
-          ═══════════════════ */}
+          {/* ═══════════════════════════════════
+              STEP 1 — Order Summary + GCash Pay
+          ═══════════════════════════════════ */}
           {step === 1 && (
             <div style={{ padding: '20px 28px 28px' }}>
               <h2 className="serif italic" style={{ fontSize: 26, color: 'var(--c-dark)', marginBottom: 6 }}>Order Summary</h2>
               <p style={{ fontSize: 13, color: 'var(--c-text-muted)', marginBottom: 20 }}>Review your items, then pay via GCash before continuing.</p>
 
+              {/* Cart items */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
                 {cart.map(({ item, qty }) => (
                   <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, background: 'var(--c-oat)', border: '1px solid var(--c-border)' }}>
@@ -228,16 +199,35 @@ const CheckoutModal = ({ onClose }) => {
                 ))}
               </div>
 
+              {/* Total */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderRadius: 14, background: 'var(--c-custard)', border: '1px solid rgba(228,140,60,0.25)', marginBottom: 20 }}>
                 <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--c-dark)' }}>Total to Pay</span>
                 <span style={{ fontWeight: 900, fontSize: 22, color: 'var(--c-caramel)' }}>{fmtPrice(totalPrice)}</span>
               </div>
 
+              {/* ── GCash QR code ── */}
+              <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--c-text-muted)', marginBottom: 10 }}>
+                  📱 Scan to Pay via GCash
+                </p>
+                <div style={{ display: 'inline-block', padding: 10, borderRadius: 16, background: '#fff', border: '2px solid var(--c-border)', boxShadow: '0 4px 16px rgba(43,24,13,0.08)' }}>
+                  <img
+                    src={GCASH_QR_URL}
+                    alt="Crav'n GCash QR Code"
+                    style={{ width: 200, height: 200, display: 'block', borderRadius: 8, objectFit: 'contain' }}
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--c-text-muted)', marginTop: 8 }}>
+                  Send exactly <strong style={{ color: 'var(--c-caramel)' }}>{fmtPrice(totalPrice)}</strong>
+                </p>
+              </div>
+
+              {/* After-pay instruction */}
               <div style={{ padding: '14px 16px', borderRadius: 12, background: '#f0fdf4', border: '1px solid #bbf7d0', marginBottom: 20 }}>
-                <p style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 4 }}>📱 Pay via GCash first</p>
-                <p style={{ fontSize: 11, color: '#166534', lineHeight: 1.5 }}>
-                  Send <strong>{fmtPrice(totalPrice)}</strong> to GCash number <strong>09XX-XXX-XXXX</strong>. 
-                  Copy the Transaction ID from your GCash app — you'll need it in the next step.
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 4 }}>✅ After paying</p>
+                <p style={{ fontSize: 11, color: '#166534', lineHeight: 1.6 }}>
+                  Copy your <strong>GCash Transaction ID</strong> from the GCash app — you'll paste it on the next step to confirm your order.
                 </p>
               </div>
 
@@ -249,7 +239,7 @@ const CheckoutModal = ({ onClose }) => {
           )}
 
           {/* ═══════════════════
-              STEP 2 — Details + Validation
+              STEP 2 — Details
           ═══════════════════ */}
           {step === 2 && (
             <div style={{ padding: '20px 28px 28px' }}>
@@ -258,38 +248,24 @@ const CheckoutModal = ({ onClose }) => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-                {/* Full Name */}
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--c-text-muted)', marginBottom: 6 }}>Full Name *</label>
-                  <input
-                    className="cravn-input"
-                    value={form.name}
-                    placeholder="e.g. Juan dela Cruz"
-                    onChange={(e) => setF('name', e.target.value)}
-                    onBlur={() => handleBlur('name')}
-                    style={{ borderColor: borderColor(touched.name, errors.name) }}
-                  />
+                  <input className="cravn-input" value={form.name} placeholder="e.g. Juan dela Cruz"
+                    onChange={(e) => setF('name', e.target.value)} onBlur={() => handleBlur('name')}
+                    style={{ borderColor: borderColor(touched.name, errors.name) }} />
                   <FieldError msg={touched.name && errors.name} />
                   <FieldOk show={touched.name && !errors.name} />
                 </div>
 
-                {/* Contact Number */}
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--c-text-muted)', marginBottom: 6 }}>Contact Number *</label>
-                  <input
-                    className="cravn-input"
-                    value={form.phone}
-                    placeholder="e.g. 09171234567"
-                    type="tel"
-                    onChange={(e) => setF('phone', e.target.value)}
-                    onBlur={() => handleBlur('phone')}
-                    style={{ borderColor: borderColor(touched.phone, errors.phone) }}
-                  />
+                  <input className="cravn-input" value={form.phone} placeholder="e.g. 09171234567" type="tel"
+                    onChange={(e) => setF('phone', e.target.value)} onBlur={() => handleBlur('phone')}
+                    style={{ borderColor: borderColor(touched.phone, errors.phone) }} />
                   <FieldError msg={touched.phone && errors.phone} />
                   <FieldOk show={touched.phone && !errors.phone} />
                 </div>
 
-                {/* Pickup Date */}
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--c-text-muted)', marginBottom: 6 }}>Pickup Date *</label>
                   {form.pickupDate && (
@@ -299,26 +275,17 @@ const CheckoutModal = ({ onClose }) => {
                   )}
                   <CravnCalendar
                     value={form.pickupDate}
-                    onChange={(v) => {
-                      setF('pickupDate', v);
-                      setTouched((t) => ({ ...t, pickupDate: true }));
-                    }}
+                    onChange={(v) => { setF('pickupDate', v); setTouched((t) => ({ ...t, pickupDate: true })); }}
                   />
                   <FieldError msg={touched.pickupDate && errors.pickupDate} />
                   <FieldOk show={touched.pickupDate && !errors.pickupDate} />
                 </div>
 
-                {/* GCash Transaction ID */}
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--c-text-muted)', marginBottom: 6 }}>GCash Transaction ID *</label>
-                  <input
-                    className="cravn-input"
-                    value={form.gcashRef}
-                    placeholder="e.g. 1234567890123"
-                    onChange={(e) => setF('gcashRef', e.target.value)}
-                    onBlur={() => handleBlur('gcashRef')}
-                    style={{ borderColor: borderColor(touched.gcashRef, errors.gcashRef) }}
-                  />
+                  <input className="cravn-input" value={form.gcashRef} placeholder="e.g. 1234567890123"
+                    onChange={(e) => setF('gcashRef', e.target.value)} onBlur={() => handleBlur('gcashRef')}
+                    style={{ borderColor: borderColor(touched.gcashRef, errors.gcashRef) }} />
                   <FieldError msg={touched.gcashRef && errors.gcashRef} />
                   <FieldOk show={touched.gcashRef && !errors.gcashRef} />
                   <p style={{ fontSize: 11, color: 'var(--c-text-muted)', marginTop: 4 }}>Found in your GCash transaction history after payment.</p>
@@ -327,12 +294,8 @@ const CheckoutModal = ({ onClose }) => {
 
               <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
                 <button onClick={() => setStep(1)} style={{ flex: 1, padding: '13px', borderRadius: 14, border: '1.5px solid var(--c-border)', background: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: 'var(--c-text-muted)' }}>← Back</button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                  className="btn-caramel"
-                  style={{ flex: 2, padding: '13px', borderRadius: 14, fontWeight: 900, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: !allStep2Valid() ? 0.75 : 1, transition: 'opacity 0.2s' }}
-                >
+                <button onClick={handleSubmit} disabled={submitting} className="btn-caramel"
+                  style={{ flex: 2, padding: '13px', borderRadius: 14, fontWeight: 900, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: !allStep2Valid() ? 0.75 : 1, transition: 'opacity 0.2s' }}>
                   {submitting
                     ? <><span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }}></span> Placing…</>
                     : 'Place Order ✓'}
